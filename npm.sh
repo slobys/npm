@@ -1,24 +1,42 @@
 #!/bin/bash
-set -e  # 出错即退出
+set -e
 
 echo "🚀 检查 Docker 是否安装..."
-if ! command -v docker &> /dev/null; then
+if ! command -v docker &>/dev/null; then
   echo "🔹 未检测到 Docker，开始安装..."
-  # 按你的要求：用这两行安装 Docker
+  # 按你要求：使用官方一键脚本
   curl -fsSL https://get.docker.com -o get-docker.sh
-  sh get-docker.sh
+  sh get-docker.sh || true
+
+  # 如果官方脚本把源写成了无效的 questing，修正为 jammy 后补装一次
+  if [ -f /etc/apt/sources.list.d/docker.list ] && grep -q "ubuntu questing" /etc/apt/sources.list.d/docker.list; then
+    echo "⚙️ 修正 docker 源代号：questing → jammy"
+    sudo sed -i 's/ubuntu questing/ubuntu jammy/' /etc/apt/sources.list.d/docker.list
+    sudo apt-get update
+    sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+  fi
+
+  sudo systemctl enable --now docker
 fi
 
-echo "🚀 检查 Docker Compose 是否安装..."
-if ! command -v docker-compose &> /dev/null; then
-  echo "🔹 未检测到 Docker Compose，开始安装..."
-  LATEST_VERSION=$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep '"tag_name":' | cut -d '"' -f 4)
-  sudo curl -SL "https://github.com/docker/compose/releases/download/$LATEST_VERSION/docker-compose-linux-x86_64" -o /usr/local/bin/docker-compose
-  sudo chmod +x /usr/local/bin/docker-compose
+echo "🚀 检查 Docker Compose 是否可用..."
+if ! command -v docker-compose &>/dev/null; then
+  if docker compose version &>/dev/null; then
+    echo "🔧 未找到 docker-compose 二进制，创建兼容 wrapper..."
+    sudo tee /usr/local/bin/docker-compose >/dev/null <<'EOF'
+#!/usr/bin/env bash
+exec docker compose "$@"
+EOF
+    sudo chmod +x /usr/local/bin/docker-compose
+  else
+    echo "🔸 尝试安装 docker-compose-plugin ..."
+    sudo apt-get update
+    sudo apt-get install -y docker-compose-plugin || true
+  fi
 fi
 
 echo "🚀 创建 Nginx Proxy Manager 目录..."
-mkdir -p /etc/docker/npm
+sudo mkdir -p /etc/docker/npm
 cd /etc/docker/npm
 
 # 交互端口（默认 80 / 81 / 443）
@@ -47,8 +65,10 @@ services:
 EOF
 
 echo "🚀 启动 Nginx Proxy Manager..."
-docker-compose up -d
+# 使用 docker compose（若安装了 wrapper，docker-compose 也可）
+docker compose up -d 2>/dev/null || docker-compose up -d
 
 echo "✅ 安装完成！"
-echo "🔹 访问面板：http://\$(hostname -I | awk '{print \$1}'):\$PORT_PANEL"
-echo "🔹 默认账号：admin@example.com / changeme"
+IPV4=$(hostname -I | awk '{print $1}')
+echo "🔹 访问面板： http://${IPV4}:${PORT_PANEL}"
+echo "🔹 默认账号： admin@example.com / changeme"
