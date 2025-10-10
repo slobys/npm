@@ -4,8 +4,9 @@ set -e  # 出错即退出
 echo "🚀 检查 Docker 是否安装..."
 if ! command -v docker &> /dev/null; then
   echo "🔹 未检测到 Docker，开始安装..."
-  curl -fsSL https://get.docker.com | sudo bash
-  sudo systemctl enable --now docker
+  # 按你的要求：用这两行安装 Docker
+  curl -fsSL https://get.docker.com -o get-docker.sh
+  sh get-docker.sh
 fi
 
 echo "🚀 检查 Docker Compose 是否安装..."
