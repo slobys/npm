@@ -47,6 +47,10 @@ services:
       - ./letsencrypt:/etc/letsencrypt
 EOF
 
+# ✅ 仅此处新增：优先 IPv4，避免拉镜像走 IPv6 报 “network is unreachable”
+sed -i 's/^#\s*precedence ::ffff:0:0\/96 100/precedence ::ffff:0:0\/96 100/' /etc/gai.conf || true
+systemctl restart docker || true
+
 echo "🚀 启动 Nginx Proxy Manager..."
 docker-compose up -d
 
