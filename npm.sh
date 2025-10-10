@@ -1,11 +1,25 @@
 #!/bin/bash
-
 set -e  # 遇到错误立即退出
 
 echo "🚀 检查 Docker 是否安装..."
 if ! command -v docker &> /dev/null; then
     echo "🔹 未检测到 Docker，开始安装..."
-    curl -fsSL https://get.docker.com | sudo bash
+
+    # —— 关键修复：强制给 get.docker.com 传正确的 Ubuntu 代号（避免 questing 导致安装失败）——
+    . /etc/os-release || true
+    VERSION_ID="${VERSION_ID:-}"
+    # 24.04 → noble；22.04 → jammy；其它兜底 jammy
+    if   [[ "$VERSION_ID" == 24.04* ]]; then CODENAME="noble"
+    elif [[ "$VERSION_ID" == 22.04* ]]; then CODENAME="jammy"
+    else CODENAME="jammy"
+    fi
+    echo "👉 使用 Ubuntu 代号：$CODENAME"
+
+    # 清理之前可能被写错的 docker 源，再用官方脚本安装
+    sudo rm -f /etc/apt/sources.list.d/docker.list
+    curl -fsSL https://get.docker.com -o /tmp/get-docker.sh
+    sudo VERSION_CODENAME="$CODENAME" sh /tmp/get-docker.sh
+
     sudo systemctl enable --now docker
 fi
 
@@ -20,7 +34,7 @@ fi
 echo "🚀 创建 Nginx Proxy Manager 目录..."
 mkdir -p /etc/docker/npm && cd /etc/docker/npm
 
-# 新增：交互输入端口，默认80、81、443
+# 交互输入端口，默认 80 / 81 / 443
 read -rp "请输入 HTTP 端口（默认80）: " PORT_HTTP
 PORT_HTTP=${PORT_HTTP:-80}
 
