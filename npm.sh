@@ -11,22 +11,10 @@ fi
 
 echo "🚀 检查 Docker Compose 是否安装..."
 if ! command -v docker-compose &> /dev/null; then
-    echo "🔹 未检测到 Docker Compose，优先用 apt 安装 plugin..."
-    if sudo apt-get update && sudo apt-get install -y docker-compose-plugin; then
-        # 创建 docker-compose 兼容包装，映射到 `docker compose`
-        sudo tee /usr/local/bin/docker-compose >/dev/null <<'EOF'
-#!/usr/bin/env bash
-exec docker compose "$@"
-EOF
-        sudo chmod +x /usr/local/bin/docker-compose
-    else
-        echo "⚠️ apt 安装 plugin 失败，回退到 GitHub 方式（需可访问 githubusercontent.com）"
-        LATEST_VERSION=$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep '"tag_name":' | cut -d '"' -f 4)
-        sudo curl -4fL --retry 5 --retry-delay 2 \
-          "https://github.com/docker/compose/releases/download/$LATEST_VERSION/docker-compose-linux-x86_64" \
-          -o /usr/local/bin/docker-compose
-        sudo chmod +x /usr/local/bin/docker-compose
-    fi
+    echo "🔹 未检测到 Docker Compose，开始安装..."
+    LATEST_VERSION=$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep '"tag_name":' | cut -d '"' -f 4)
+    sudo curl -SL "https://github.com/docker/compose/releases/download/$LATEST_VERSION/docker-compose-linux-x86_64" -o /usr/local/bin/docker-compose
+    sudo chmod +x /usr/local/bin/docker-compose
 fi
 
 echo "🚀 创建 Nginx Proxy Manager 目录..."
